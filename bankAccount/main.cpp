@@ -14,6 +14,10 @@ class Transaction{
         this->amount = amount;
         this->date = date;
     }
+
+    void printTransaction() const {
+        cout << "Transaction: " << type << ", Amount: " << amount << ", Date: " << date << endl;
+    }
 };
 
 class BankAccount{
@@ -65,6 +69,12 @@ class BankAccount{
     string getOwner(){
         return owner;
     }
+
+    void printTransactions()const {
+        for(const auto& transaction:myTransactions){
+            transaction.printTransaction();
+        }
+    }
 };
 
 
@@ -78,5 +88,9 @@ int main() {
 
     cout << "Current balance: " << account.getBalance() << endl;
     cout << "Asha balance: " << other.getBalance() << endl;
+
+
+    account.printTransactions();
+
     return 0;
 }
