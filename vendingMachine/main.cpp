@@ -1,6 +1,9 @@
 #include <iostream>
+#include <map>
+#include <optional>
 #include <string>
 #include <unordered_map>
+#include <vector>
 using namespace std;
 
 enum class Coin {
@@ -9,6 +12,8 @@ enum class Coin {
   FIVE = 5,
   TEN = 10,
 };
+
+int coinValue(Coin c) { return static_cast<int>(c); };
 
 class Product {
 private:
@@ -109,6 +114,37 @@ public:
     }
 
     return false;
+  }
+};
+
+class CoinManager {
+private:
+  map<Coin, int> reserve;
+  vector<Coin> insertedCoins;
+  int balance = 0;
+
+public:
+  bool addToReserve(Coin c, int count) {
+    if (count <= 0)
+      return false;
+
+    int currentCount = reserve[c];
+    reserve[c] = currentCount + count;
+    return true;
+  }
+
+  void insertCoin(Coin c) {
+    balance += coinValue(c);
+    insertedCoins.push_back(c);
+  }
+
+  int getBalance() const { return balance; }
+
+  vector<Coin> refund() {
+    vector<Coin> coinsToRefund = insertedCoins;
+    insertedCoins.clear();
+    balance = 0;
+    return coinsToRefund;
   }
 };
 
