@@ -209,3 +209,133 @@ public:
   virtual void cancel(VendingMachine &m) = 0;
   virtual string name() const = 0;
 };
+
+class IdleState : public State {
+public:
+  void insertCoin(VendingMachine &m, Coin c) override;
+  void selectProduct(VendingMachine &m, const string &id) override;
+  void cancel(VendingMachine &m) override;
+  string name() const override { return "Idle"; }
+};
+
+class HasMoneyState : public State {
+public:
+  void insertCoin(VendingMachine &m, Coin c) override;
+  void selectProduct(VendingMachine &m, const string &id) override;
+  void cancel(VendingMachine &m) override;
+  string name() const override { return "HasMoney"; }
+};
+
+class VendingMachine {
+private:
+  Inventory inventory;
+  CoinManager coinManager;
+  IdleState idleState;
+  HasMoneyState hasMoneyState;
+  State *currentState;
+
+public:
+  VendingMachine() : currentState(&idleState) {}
+
+  void insertCoin(Coin c) { currentState->insertCoin(*this, c); }
+  void selectProduct(const string &id) {
+    currentState->selectProduct(*this, id);
+  }
+  void cancel() { currentState->cancel(*this); }
+
+  bool addSlot(const string &id, const Product &p, int qty) {
+    return inventory.addSlot(id, p, qty);
+  }
+  bool addCoinsToReserve(Coin c, int count) {
+    return coinManager.addToReserve(c, count);
+  }
+
+  Inventory &getInventory() { return inventory; }
+  CoinManager &getCoinManager() { return coinManager; }
+  void setState(State *s) { currentState = s; }
+  State *getIdleState() { return &idleState; }
+  State *getHasMoneyState() { return &hasMoneyState; }
+  string getStateName() const { return currentState->name(); }
+};
+
+// ===== Idle mood =====
+void IdleState::insertCoin(VendingMachine &m, Coin c) {
+  m.getCoinManager().insertCoin(c);
+  cout << "Inserted " << coinValue(c)
+       << ", balance: " << m.getCoinManager().getBalance() << endl;
+  m.setState(m.getHasMoneyState());
+}
+
+void IdleState::selectProduct(VendingMachine &m, const string &id) {
+  cout << "Please insert coins first" << endl;
+}
+
+void IdleState::cancel(VendingMachine &m) {
+  cout << "Nothing to refund" << endl;
+}
+
+// ===== HasMoney mood =====
+void HasMoneyState::insertCoin(VendingMachine &m, Coin c) {
+  m.getCoinManager().insertCoin(c);
+  cout << "Inserted " << coinValue(c)
+       << ", balance: " << m.getCoinManager().getBalance() << endl;
+}
+
+void HasMoneyState::cancel(VendingMachine &m) {
+  vector<Coin> coins = m.getCoinManager().refund();
+  cout << "Refunded: ";
+  for (Coin c : coins)
+    cout << coinValue(c) << " ";
+  cout << endl;
+  m.setState(m.getIdleState());
+}
+
+void HasMoneyState::selectProduct(VendingMachine &m, const string &id) {
+  Inventory &inv = m.getInventory();
+  CoinManager &cm = m.getCoinManager();
+
+  if (!inv.isAvailable(id)) {
+    cout << "Product " << id << " not available" << endl;
+    return;
+  }
+
+  int price = inv.getPrice(id);
+  if (cm.getBalance() < price) {
+    cout << "Insert " << price - cm.getBalance() << " more" << endl;
+    return;
+  }
+
+  optional<vector<Coin>> change = cm.completeSale(price);
+  if (!change) {
+    cout << "Cannot give exact change." << endl;
+    cancel(m);
+    return;
+  }
+
+  inv.dispenseProduct(id);
+  cout << "Dispensed " << id << ". Change: ";
+  for (Coin c : *change)
+    cout << coinValue(c) << " ";
+  cout << endl;
+  m.setState(m.getIdleState());
+}
+
+// ===== Test =====
+int main() {
+  VendingMachine vm;
+  vm.addSlot("A1", Product("Coke", 20), 1);
+  vm.addCoinsToReserve(Coin::ONE, 5);
+  vm.addCoinsToReserve(Coin::TWO, 5);
+
+  vm.selectProduct("A1");   // Idle → "insert coins first"
+  vm.insertCoin(Coin::TEN); // → HasMoney
+  vm.selectProduct("A1");   // "Insert 10 more"
+  vm.insertCoin(Coin::TEN);
+  vm.selectProduct("A1"); // Dispensed → Idle
+  cout << "State: " << vm.getStateName() << endl;
+
+  vm.insertCoin(Coin::FIVE);
+  vm.cancel(); // Refunded 5 → Idle
+  cout << "State: " << vm.getStateName() << endl;
+  return 0;
+}
