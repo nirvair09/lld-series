@@ -14,6 +14,8 @@ enum class Coin {
 };
 
 int coinValue(Coin c) { return static_cast<int>(c); };
+const vector<Coin> DENOMINATIONS = {Coin::TEN, Coin::FIVE, Coin::TWO,
+                                    Coin::ONE};
 
 class Product {
 private:
@@ -146,21 +148,64 @@ public:
     balance = 0;
     return coinsToRefund;
   }
+
+  optional<vector<Coin>> completeSale(int price) {
+    if (balance < price) {
+      return nullopt;
+    }
+
+    map<Coin, int> temp = reserve;
+    for (Coin c : insertedCoins) {
+      temp[c]++;
+    }
+
+    int remaining = balance - price;
+    vector<Coin> change;
+
+    for (Coin c : DENOMINATIONS) {
+      while (remaining >= coinValue(c) && temp[c] > 0) {
+        change.push_back(c);
+        temp[c]--;
+        remaining -= coinValue(c);
+      }
+    }
+
+    if (remaining != 0) {
+      return nullopt;
+    }
+
+    reserve = temp;
+    insertedCoins.clear();
+    balance = 0;
+    return change;
+  }
 };
 
-int main() {
-  Inventory inv;
-  cout << inv.addSlot("A1", Product("Coke", 20), 2) << endl;  // 1
-  cout << inv.addSlot("A1", Product("Pepsi", 20), 5) << endl; // 0 (duplicate)
+// int main() {
+//   Inventory inv;
+//   cout << inv.addSlot("A1", Product("Coke", 20), 2) << endl;  // 1
+//   cout << inv.addSlot("A1", Product("Pepsi", 20), 5) << endl; // 0
+//   (duplicate)
 
-  cout << inv.isAvailable("A1") << endl; // 1
-  cout << inv.getPrice("A1") << endl;    // 20
-  inv.dispenseProduct("A1");
-  inv.dispenseProduct("A1");
-  cout << inv.isAvailable("A1") << endl;     // 0 (empty)
-  cout << inv.dispenseProduct("A1") << endl; // 0 (can't dispense)
-  cout << inv.restockSlot("A1", 3) << endl;  // 1
-  cout << inv.isAvailable("A1") << endl;     // 1 (restocked)
-  cout << inv.isAvailable("Z9") << endl;     // 0 (doesn't exist)
-  return 0;
-}
+//   cout << inv.isAvailable("A1") << endl; // 1
+//   cout << inv.getPrice("A1") << endl;    // 20
+//   inv.dispenseProduct("A1");
+//   inv.dispenseProduct("A1");
+//   cout << inv.isAvailable("A1") << endl;     // 0 (empty)
+//   cout << inv.dispenseProduct("A1") << endl; // 0 (can't dispense)
+//   cout << inv.restockSlot("A1", 3) << endl;  // 1
+//   cout << inv.isAvailable("A1") << endl;     // 1 (restocked)
+//   cout << inv.isAvailable("Z9") << endl;     // 0 (doesn't exist)
+//   return 0;
+// }
+
+class VendingMachine;
+
+class State {
+public:
+  virtual ~State() = default;
+  virtual void insertCoin(VendingMachine &m, Coin c) = 0;
+  virtual void selectProduct(VendingMachine &m, const string &id) = 0;
+  virtual void cancel(VendingMachine &m) = 0;
+  virtual string name() const = 0;
+};
